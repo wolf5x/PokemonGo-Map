@@ -53,6 +53,8 @@ class PGoApi:
 
         self._req_method_list = []
 
+        self._logged_in = False
+
     def copy(self):
         other = PGoApi()
         other.log = self.log
@@ -137,6 +139,7 @@ class PGoApi:
             
         
     def login(self, provider, username, password):
+        self._logged_in = False
     
         if not isinstance(username, basestring) or not isinstance(password, basestring):
             raise AuthException("Username/password not correctly specified")
@@ -184,5 +187,10 @@ class PGoApi:
         self.log.info('Finished RPC login sequence (app simulation)')
         self.log.info('Login process completed') 
         
+        self._logged_in = True
         return True
         
+
+    def logged_in(self):
+        return self._logged_in
+

@@ -115,11 +115,20 @@ def login(args, api, auth_service, username, password, position):
 
     api.set_position(*position)
 
+    retry = config['LOGIN_RETRY']
     while not api.login(auth_service, username, password):
+        retry -= 1
         log.info('Failed to login to Pokemon Go. Trying again in {:g} seconds.'.format(args.login_delay))
+        if retry <= 0:
+            break
         time.sleep(args.login_delay)
 
-    log.info('Login to Pokemon Go successful.')
+    if api.logged_in:
+        log.info('Login to Pokemon Go successful.')
+        return True
+    else:
+        log.info('Login to Pokemon Go failed.')
+        return False
 
 
 #
@@ -127,9 +136,11 @@ def login(args, api, auth_service, username, password, position):
 #
 def create_search_threads(thread_count, api_count):
     search_threads = []
+    api_idx = 0
     for i in range(thread_count):
-        api_idx = i % api_count
-        t = Thread(target=search_thread, name='search_thread-{}'.format(i), args=(search_queue, api_idx))
+        while not apis[api_idx].logged_in:
+            api_idx = (api_idx + 1) % api_count
+        t = Thread(target=search_thread, name='search_thread-{}'.format(i), args=(search_queue, apis[api_idx]))
         t.daemon = True
         t.start()
         search_threads.append(t)
@@ -139,8 +150,7 @@ def create_empty_apis(api_count):
     for i in range(api_count):
         apis.append(PGoApi())
 
-def search_thread(q, api_idx):
-    api = apis[api_idx]
+def search_thread(q, api):
     threadname = threading.currentThread().getName()
     log.debug("Search thread {}: started and waiting".format(threadname))
     while True:
